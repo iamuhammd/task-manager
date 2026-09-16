@@ -1,12 +1,13 @@
-import User, { IUser } from '../models/User';
+import User from '../models/User';
 import ApiError from '../utils/ApiError';
+import { IUserDocument } from '../types';
 
 export class UserService {
-  public static async getAllUsers(): Promise<IUser[]> {
+  public static async getAllUsers(): Promise<IUserDocument[]> {
     return User.find().select('-password');
   }
 
-  public static async getUserById(id: string): Promise<IUser> {
+  public static async getUserById(id: string): Promise<IUserDocument> {
     const user = await User.findById(id).select('-password');
     if (!user) {
       throw new ApiError(404, 'User not found');
@@ -14,7 +15,7 @@ export class UserService {
     return user;
   }
 
-  public static async updateUser(id: string, updateData: Partial<IUser>): Promise<IUser> {
+  public static async updateUser(id: string, updateData: Partial<IUserDocument>): Promise<IUserDocument> {
     if (updateData.email) {
       const existingUser = await User.findOne({ email: updateData.email.toLowerCase(), _id: { $ne: id } });
       if (existingUser) {

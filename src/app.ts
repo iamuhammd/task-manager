@@ -40,13 +40,20 @@ const swaggerOptions: swaggerJsdoc.Options = {
     info: {
       title: 'Task Manager API',
       version: '1.0.0',
-      description: 'Production-ready RESTful API for managing tasks, projects, and users',
+      description:
+        'Production-ready RESTful API for managing tasks, projects, and users with full JWT authentication.',
     },
     servers: [
       {
         url: `http://localhost:${PORT}/api/v1`,
         description: 'Development Server',
       },
+    ],
+    tags: [
+      { name: 'Auth', description: 'Authentication — register, login, token refresh, password reset' },
+      { name: 'Users', description: 'User management' },
+      { name: 'Projects', description: 'Project management' },
+      { name: 'Tasks', description: 'Task management' },
     ],
     components: {
       securitySchemes: {

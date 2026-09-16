@@ -2,8 +2,15 @@ import { Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { JWT_SECRET } from '../config/env';
 import ApiError from '../utils/ApiError';
-import { AuthenticatedRequest, IUserPayload } from '../types';
+import { AuthenticatedRequest, JwtPayload, Role } from '../types';
 
+/**
+ * authenticate — Verify a JWT from the Authorization: Bearer <token> header.
+ *
+ * On success, attaches the decoded payload to `req.user`.
+ * On failure, forwards an ApiError with an appropriate status code:
+ *   - 401 if token is missing, invalid, or expired
+ */
 export const authenticate = (
   req: AuthenticatedRequest,
   res: Response,
@@ -13,40 +20,52 @@ export const authenticate = (
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new ApiError(401, 'Authentication token missing or invalid');
+      throw ApiError.unauthorized('Authentication token is missing or malformed');
     }
 
     const token = authHeader.split(' ')[1];
-
     if (!token) {
-      throw new ApiError(401, 'Authentication token missing');
+      throw ApiError.unauthorized('Authentication token is missing');
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET) as IUserPayload;
+    const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
     req.user = decoded;
-
     next();
   } catch (error: any) {
     if (error instanceof ApiError) {
       next(error);
-    } else if (error.name === 'JsonWebTokenError') {
-      next(new ApiError(401, 'Invalid authentication token'));
     } else if (error.name === 'TokenExpiredError') {
-      next(new ApiError(401, 'Authentication token expired'));
+      next(ApiError.unauthorized('Authentication token has expired'));
+    } else if (error.name === 'JsonWebTokenError') {
+      next(ApiError.unauthorized('Authentication token is invalid'));
     } else {
-      next(new ApiError(401, 'Authentication failed'));
+      next(ApiError.unauthorized('Authentication failed'));
     }
   }
 };
 
-export const authorize = (...roles: string[]) => {
+/**
+ * authorize — Role-based access control guard.
+ *
+ * Must be used *after* `authenticate`.
+ * Accepts one or more roles; the request is allowed if `req.user.role`
+ * is included in the list.
+ *
+ * @example
+ *   router.delete('/:id', authenticate, authorize('admin'), handler)
+ */
+export const authorize = (...roles: Role[]) => {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
     if (!req.user) {
-      return next(new ApiError(401, 'User not authenticated'));
+      return next(ApiError.unauthorized('User is not authenticated'));
     }
 
-    if (roles.length && !roles.includes(req.user.role)) {
-      return next(new ApiError(403, 'Forbidden: You do not have permission to access this resource'));
+    if (roles.length > 0 && !roles.includes(req.user.role as Role)) {
+      return next(
+        ApiError.forbidden(
+          `Access denied. Required role(s): ${roles.join(', ')}. Your role: ${req.user.role}`
+        )
+      );
     }
 
     next();

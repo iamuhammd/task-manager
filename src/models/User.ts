@@ -1,25 +1,20 @@
-import mongoose, { Schema, Document, Model } from 'mongoose';
+import mongoose, { Schema, Model } from 'mongoose';
 import bcrypt from 'bcryptjs';
+import { IUserDocument } from '../types';
 
-export interface IUser extends Document {
-  _id: mongoose.Types.ObjectId;
-  name: string;
-  email: string;
-  password?: string;
-  role: 'user' | 'admin';
-  avatar?: string;
-  createdAt: Date;
-  updatedAt: Date;
-  comparePassword(candidatePassword: string): Promise<boolean>;
-}
-
-const UserSchema: Schema<IUser> = new Schema(
+const UserSchema: Schema<IUserDocument> = new Schema(
   {
-    name: {
+    firstName: {
       type: String,
-      required: [true, 'Name is required'],
+      required: [true, 'First name is required'],
       trim: true,
-      maxlength: [50, 'Name cannot exceed 50 characters'],
+      maxlength: [50, 'First name cannot exceed 50 characters'],
+    },
+    lastName: {
+      type: String,
+      required: [true, 'Last name is required'],
+      trim: true,
+      maxlength: [50, 'Last name cannot exceed 50 characters'],
     },
     email: {
       type: String,
@@ -32,17 +27,42 @@ const UserSchema: Schema<IUser> = new Schema(
     password: {
       type: String,
       required: [true, 'Password is required'],
-      minlength: [6, 'Password must be at least 6 characters long'],
+      minlength: [8, 'Password must be at least 8 characters long'],
       select: false,
     },
     role: {
       type: String,
-      enum: ['user', 'admin'],
+      enum: ['admin', 'manager', 'user'],
       default: 'user',
     },
     avatar: {
       type: String,
-      default: '',
+    },
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    emailVerificationToken: {
+      type: String,
+      select: false,
+    },
+    emailVerificationExpires: {
+      type: Date,
+    },
+    passwordResetToken: {
+      type: String,
+      select: false,
+    },
+    passwordResetExpires: {
+      type: Date,
+    },
+    refreshToken: {
+      type: String,
+      select: false,
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
     },
   },
   {
@@ -50,13 +70,13 @@ const UserSchema: Schema<IUser> = new Schema(
   }
 );
 
-UserSchema.pre<IUser>('save', async function (next) {
+// ─── Pre-save Hook: hash password only when modified ─────────────────────────
+UserSchema.pre<IUserDocument>('save', async function (next) {
   if (!this.isModified('password') || !this.password) {
     return next();
   }
-
   try {
-    const salt = await bcrypt.genSalt(10);
+    const salt = await bcrypt.genSalt(12);
     this.password = await bcrypt.hash(this.password, salt);
     next();
   } catch (error: any) {
@@ -64,9 +84,12 @@ UserSchema.pre<IUser>('save', async function (next) {
   }
 });
 
-UserSchema.methods.comparePassword = async function (candidatePassword: string): Promise<boolean> {
-  return bcrypt.compare(candidatePassword, this.password);
+// ─── Instance Method: comparePassword ────────────────────────────────────────
+UserSchema.methods.comparePassword = async function (
+  candidatePassword: string
+): Promise<boolean> {
+  return bcrypt.compare(candidatePassword, this.password as string);
 };
 
-export const User: Model<IUser> = mongoose.model<IUser>('User', UserSchema);
+export const User: Model<IUserDocument> = mongoose.model<IUserDocument>('User', UserSchema);
 export default User;
