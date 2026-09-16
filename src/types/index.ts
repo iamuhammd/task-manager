@@ -1,21 +1,18 @@
 import { Request } from 'express';
 import { Document, Types } from 'mongoose';
 
-// ─── User Roles ──────────────────────────────────────────────────────────────
+// ─── User Roles ───────────────────────────────────────────────────────────────
 export type Role = 'admin' | 'manager' | 'user';
 
-// ─── Task Types ───────────────────────────────────────────────────────────────
-export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'COMPLETED';
-export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+// ─── Task Enums ───────────────────────────────────────────────────────────────
+export type TaskStatus = 'todo' | 'in-progress' | 'review' | 'done';
+export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
 
 // ─── Project Member Roles ─────────────────────────────────────────────────────
 export type ProjectMemberRole = 'admin' | 'manager' | 'member';
 
 // ─── User Interfaces ──────────────────────────────────────────────────────────
 
-/**
- * Plain user data shape (mirrors Mongoose schema fields).
- */
 export interface IUser {
   firstName: string;
   lastName: string;
@@ -34,9 +31,6 @@ export interface IUser {
   updatedAt: Date;
 }
 
-/**
- * Mongoose document that extends IUser with instance methods.
- */
 export interface IUserDocument extends IUser, Document {
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
@@ -49,9 +43,6 @@ export interface IProjectMember {
   joinedAt: Date;
 }
 
-/**
- * Plain project data shape (mirrors Mongoose schema fields).
- */
 export interface IProject {
   name: string;
   description?: string;
@@ -65,9 +56,6 @@ export interface IProject {
   updatedAt: Date;
 }
 
-/**
- * Mongoose document that extends IProject.
- */
 export interface IProjectDocument extends IProject, Document {}
 
 export interface CreateProjectInput {
@@ -90,6 +78,81 @@ export interface UpdateProjectInput {
 export interface AddMemberInput {
   userId: string;
   role?: ProjectMemberRole;
+}
+
+// ─── Task Interfaces ──────────────────────────────────────────────────────────
+
+export interface IAttachment {
+  filename: string;
+  url: string;
+  uploadedAt: Date;
+}
+
+export interface IActivityLogEntry {
+  user: Types.ObjectId;
+  action: string;
+  timestamp: Date;
+}
+
+export interface ITask {
+  title: string;
+  description?: string;
+  project: Types.ObjectId;
+  assignedTo?: Types.ObjectId;
+  createdBy: Types.ObjectId;
+  priority: TaskPriority;
+  status: TaskStatus;
+  dueDate?: Date;
+  tags: string[];
+  attachments: IAttachment[];
+  activityLog: IActivityLogEntry[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ITaskDocument extends ITask, Document {}
+
+export interface CreateTaskInput {
+  title: string;
+  description?: string;
+  projectId: string;
+  assignedTo?: string;
+  priority?: TaskPriority;
+  dueDate?: string;
+  tags?: string[];
+}
+
+export interface UpdateTaskInput {
+  title?: string;
+  description?: string;
+  assignedTo?: string;
+  priority?: TaskPriority;
+  dueDate?: string;
+  tags?: string[];
+}
+
+export interface TaskFilterOptions {
+  status?: TaskStatus;
+  priority?: TaskPriority;
+  assignedTo?: string;
+}
+
+// ─── Comment Interfaces ───────────────────────────────────────────────────────
+
+export interface IComment {
+  task: Types.ObjectId;
+  author: Types.ObjectId;
+  content: string;
+  mentions: Types.ObjectId[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ICommentDocument extends IComment, Document {}
+
+export interface CreateCommentInput {
+  content: string;
+  mentions?: string[];
 }
 
 // ─── JWT ──────────────────────────────────────────────────────────────────────

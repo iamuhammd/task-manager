@@ -1,43 +1,36 @@
-import mongoose, { Schema, Document, Model } from 'mongoose';
-import { TaskStatus, TaskPriority } from '../types';
+import mongoose, { Schema, Model } from 'mongoose';
+import { ITaskDocument } from '../types';
 
-export interface ITask extends Document {
-  _id: mongoose.Types.ObjectId;
-  title: string;
-  description?: string;
-  status: TaskStatus;
-  priority: TaskPriority;
-  project: mongoose.Types.ObjectId;
-  assignedTo?: mongoose.Types.ObjectId;
-  createdBy: mongoose.Types.ObjectId;
-  dueDate?: Date;
-  tags: string[];
-  createdAt: Date;
-  updatedAt: Date;
-}
+const AttachmentSchema = new Schema(
+  {
+    filename: { type: String, required: true },
+    url: { type: String, required: true },
+    uploadedAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
 
-const TaskSchema: Schema<ITask> = new Schema(
+const ActivityLogSchema = new Schema(
+  {
+    user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    action: { type: String, required: true },
+    timestamp: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
+const TaskSchema = new Schema<ITaskDocument>(
   {
     title: {
       type: String,
       required: [true, 'Task title is required'],
       trim: true,
-      maxlength: [150, 'Task title cannot exceed 150 characters'],
+      maxlength: [200, 'Task title cannot exceed 200 characters'],
     },
     description: {
       type: String,
       trim: true,
-      default: '',
-    },
-    status: {
-      type: String,
-      enum: ['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'COMPLETED'],
-      default: 'TODO',
-    },
-    priority: {
-      type: String,
-      enum: ['LOW', 'MEDIUM', 'HIGH', 'URGENT'],
-      default: 'MEDIUM',
+      maxlength: [1000, 'Task description cannot exceed 1000 characters'],
     },
     project: {
       type: Schema.Types.ObjectId,
@@ -51,22 +44,44 @@ const TaskSchema: Schema<ITask> = new Schema(
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: 'User',
-      required: [true, 'Creator is required'],
+      required: [true, 'Task creator is required'],
+    },
+    priority: {
+      type: String,
+      enum: ['low', 'medium', 'high', 'urgent'],
+      default: 'medium',
+    },
+    status: {
+      type: String,
+      enum: ['todo', 'in-progress', 'review', 'done'],
+      default: 'todo',
     },
     dueDate: {
       type: Date,
     },
-    tags: [
-      {
-        type: String,
-        trim: true,
-      },
-    ],
+    tags: {
+      type: [String],
+      default: [],
+    },
+    attachments: {
+      type: [AttachmentSchema],
+      default: [],
+    },
+    activityLog: {
+      type: [ActivityLogSchema],
+      default: [],
+    },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-export const Task: Model<ITask> = mongoose.model<ITask>('Task', TaskSchema);
+// ─── Indexes ──────────────────────────────────────────────────────────────────
+TaskSchema.index({ project: 1 });
+TaskSchema.index({ assignedTo: 1 });
+TaskSchema.index({ status: 1 });
+TaskSchema.index({ priority: 1 });
+TaskSchema.index({ project: 1, status: 1 });
+TaskSchema.index({ project: 1, assignedTo: 1 });
+
+export const Task: Model<ITaskDocument> = mongoose.model<ITaskDocument>('Task', TaskSchema);
 export default Task;

@@ -1,15 +1,7 @@
-import mongoose, { Schema, Document, Model } from 'mongoose';
+import mongoose, { Schema, Model } from 'mongoose';
+import { ICommentDocument } from '../types';
 
-export interface IComment extends Document {
-  _id: mongoose.Types.ObjectId;
-  task: mongoose.Types.ObjectId;
-  author: mongoose.Types.ObjectId;
-  content: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-const CommentSchema: Schema<IComment> = new Schema(
+const CommentSchema = new Schema<ICommentDocument>(
   {
     task: {
       type: Schema.Types.ObjectId,
@@ -27,11 +19,22 @@ const CommentSchema: Schema<IComment> = new Schema(
       trim: true,
       maxlength: [1000, 'Comment content cannot exceed 1000 characters'],
     },
+    mentions: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    ],
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-export const Comment: Model<IComment> = mongoose.model<IComment>('Comment', CommentSchema);
+// ─── Index ────────────────────────────────────────────────────────────────────
+CommentSchema.index({ task: 1 });
+CommentSchema.index({ task: 1, createdAt: -1 });
+
+export const Comment: Model<ICommentDocument> = mongoose.model<ICommentDocument>(
+  'Comment',
+  CommentSchema
+);
 export default Comment;
