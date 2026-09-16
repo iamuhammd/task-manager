@@ -14,6 +14,7 @@ import authRoutes from './routes/auth';
 import userRoutes from './routes/users';
 import projectRoutes from './routes/projects';
 import taskRoutes from './routes/tasks';
+import analyticsRoutes from './routes/analytics';
 
 const app: Express = express();
 
@@ -51,9 +52,10 @@ const swaggerOptions: swaggerJsdoc.Options = {
     ],
     tags: [
       { name: 'Auth', description: 'Authentication — register, login, token refresh, password reset' },
-      { name: 'Users', description: 'User management' },
+      { name: 'Users', description: 'User profile management and admin operations' },
       { name: 'Projects', description: 'Project management' },
       { name: 'Tasks', description: 'Task management' },
+      { name: 'Analytics', description: 'Dashboard and productivity analytics' },
     ],
     components: {
       securitySchemes: {
@@ -85,6 +87,7 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/projects', projectRoutes);
 app.use('/api/v1/tasks', taskRoutes);
+app.use('/api/v1/analytics', analyticsRoutes);
 
 // Global Error Handler Middleware (Must be mounted last)
 app.use(errorHandler);
