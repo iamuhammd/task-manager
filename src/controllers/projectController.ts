@@ -1,128 +1,237 @@
 import { Response, NextFunction } from 'express';
 import { z } from 'zod';
 import ProjectService from '../services/projectService';
-import { AuthenticatedRequest } from '../types';
 import ApiError from '../utils/ApiError';
+import { AuthenticatedRequest } from '../types';
+
+// ─── Zod Schemas ─────────────────────────────────────────────────────────────
 
 const createProjectSchema = z.object({
   name: z.string().min(1, 'Project name is required').max(100),
-  description: z.string().optional(),
-  members: z.array(z.string()).optional(),
+  description: z.string().max(500).optional(),
+  categories: z.array(z.string()).optional(),
+  tags: z.array(z.string()).optional(),
+  dueDate: z.string().datetime({ offset: true }).optional(),
 });
 
 const updateProjectSchema = z.object({
   name: z.string().min(1).max(100).optional(),
-  description: z.string().optional(),
-  status: z.enum(['ACTIVE', 'ARCHIVED', 'COMPLETED']).optional(),
-  members: z.array(z.string()).optional(),
+  description: z.string().max(500).optional(),
+  categories: z.array(z.string()).optional(),
+  tags: z.array(z.string()).optional(),
+  dueDate: z.string().datetime({ offset: true }).optional(),
+  status: z.enum(['active', 'archived']).optional(),
 });
 
 const addMemberSchema = z.object({
-  memberId: z.string().min(1, 'Member ID is required'),
+  userId: z.string().min(1, 'userId is required'),
+  role: z.enum(['admin', 'manager', 'member']).optional(),
 });
 
+// ─── Validation helper ────────────────────────────────────────────────────────
+
+function validate<T>(schema: z.ZodSchema<T>, data: unknown): T {
+  const result = schema.safeParse(data);
+  if (!result.success) {
+    const message = result.error.errors.map((e) => e.message).join(', ');
+    throw ApiError.badRequest(message);
+  }
+  return result.data;
+}
+
+// ─── Controller ───────────────────────────────────────────────────────────────
+
 export class ProjectController {
-  public static async createProject(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+  /**
+   * POST /api/v1/projects
+   */
+  static async createProject(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     try {
-      if (!req.user) throw new ApiError(401, 'Unauthorized');
-
-      const parsed = createProjectSchema.safeParse(req.body);
-      if (!parsed.success) {
-        throw new ApiError(400, parsed.error.errors.map(e => e.message).join(', '));
-      }
-
-      const project = await ProjectService.createProject(parsed.data, req.user.id);
+      if (!req.user) throw ApiError.unauthorized();
+      const input = validate(createProjectSchema, req.body);
+      const project = await ProjectService.createProject(req.user.id, input);
       res.status(201).json({
         success: true,
         message: 'Project created successfully',
-        data: project,
+        data: { project },
       });
-    } catch (error) {
-      next(error);
+    } catch (err) {
+      next(err);
     }
   }
 
-  public static async getProjects(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+  /**
+   * GET /api/v1/projects
+   */
+  static async getAllProjects(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     try {
-      if (!req.user) throw new ApiError(401, 'Unauthorized');
-
+      if (!req.user) throw ApiError.unauthorized();
       const projects = await ProjectService.getAllProjects(req.user.id);
       res.status(200).json({
         success: true,
-        data: projects,
+        data: { projects, count: projects.length },
       });
-    } catch (error) {
-      next(error);
+    } catch (err) {
+      next(err);
     }
   }
 
-  public static async getProjectById(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+  /**
+   * GET /api/v1/projects/:id
+   */
+  static async getProjectById(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     try {
-      const { id } = req.params;
-      const project = await ProjectService.getProjectById(id);
+      if (!req.user) throw ApiError.unauthorized();
+      const project = await ProjectService.getProjectById(req.params.id, req.user.id);
       res.status(200).json({
         success: true,
-        data: project,
+        data: { project },
       });
-    } catch (error) {
-      next(error);
+    } catch (err) {
+      next(err);
     }
   }
 
-  public static async updateProject(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+  /**
+   * PUT /api/v1/projects/:id
+   */
+  static async updateProject(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     try {
-      if (!req.user) throw new ApiError(401, 'Unauthorized');
-      const { id } = req.params;
-
-      const parsed = updateProjectSchema.safeParse(req.body);
-      if (!parsed.success) {
-        throw new ApiError(400, parsed.error.errors.map(e => e.message).join(', '));
-      }
-
-      const project = await ProjectService.updateProject(id, req.user.id, parsed.data as any);
+      if (!req.user) throw ApiError.unauthorized();
+      const input = validate(updateProjectSchema, req.body);
+      const project = await ProjectService.updateProject(req.params.id, req.user.id, input);
       res.status(200).json({
         success: true,
         message: 'Project updated successfully',
-        data: project,
+        data: { project },
       });
-    } catch (error) {
-      next(error);
+    } catch (err) {
+      next(err);
     }
   }
 
-  public static async deleteProject(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+  /**
+   * DELETE /api/v1/projects/:id
+   */
+  static async deleteProject(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     try {
-      if (!req.user) throw new ApiError(401, 'Unauthorized');
-      const { id } = req.params;
-
-      await ProjectService.deleteProject(id, req.user.id);
+      if (!req.user) throw ApiError.unauthorized();
+      await ProjectService.deleteProject(req.params.id, req.user.id);
       res.status(200).json({
         success: true,
-        message: 'Project deleted successfully',
+        message: 'Project and all associated tasks deleted successfully',
       });
-    } catch (error) {
-      next(error);
+    } catch (err) {
+      next(err);
     }
   }
 
-  public static async addMember(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+  /**
+   * PATCH /api/v1/projects/:id/archive
+   */
+  static async archiveProject(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     try {
-      if (!req.user) throw new ApiError(401, 'Unauthorized');
-      const { id } = req.params;
+      if (!req.user) throw ApiError.unauthorized();
+      const project = await ProjectService.archiveProject(req.params.id, req.user.id);
+      res.status(200).json({
+        success: true,
+        message: 'Project archived successfully',
+        data: { project },
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
 
-      const parsed = addMemberSchema.safeParse(req.body);
-      if (!parsed.success) {
-        throw new ApiError(400, parsed.error.errors.map(e => e.message).join(', '));
-      }
+  /**
+   * PATCH /api/v1/projects/:id/restore
+   */
+  static async restoreProject(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      if (!req.user) throw ApiError.unauthorized();
+      const project = await ProjectService.restoreProject(req.params.id, req.user.id);
+      res.status(200).json({
+        success: true,
+        message: 'Project restored successfully',
+        data: { project },
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
 
-      const project = await ProjectService.addMember(id, req.user.id, parsed.data.memberId);
+  /**
+   * POST /api/v1/projects/:id/members
+   */
+  static async addMember(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      if (!req.user) throw ApiError.unauthorized();
+      const input = validate(addMemberSchema, req.body);
+      const project = await ProjectService.addMember(req.params.id, req.user.id, input);
       res.status(200).json({
         success: true,
         message: 'Member added to project successfully',
-        data: project,
+        data: { project },
       });
-    } catch (error) {
-      next(error);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * DELETE /api/v1/projects/:id/members/:memberId
+   */
+  static async removeMember(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      if (!req.user) throw ApiError.unauthorized();
+      const project = await ProjectService.removeMember(
+        req.params.id,
+        req.user.id,
+        req.params.memberId
+      );
+      res.status(200).json({
+        success: true,
+        message: 'Member removed from project successfully',
+        data: { project },
+      });
+    } catch (err) {
+      next(err);
     }
   }
 }

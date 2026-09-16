@@ -34,7 +34,7 @@ export class TaskService {
       createdBy: createdById,
     });
 
-    return task.populate('project assignedTo createdBy', 'name email avatar title');
+    return task.populate('project assignedTo createdBy', 'firstName lastName email avatar title');
   }
 
   public static async getTasks(filters: TaskFilterOptions): Promise<ITask[]> {
@@ -44,11 +44,11 @@ export class TaskService {
     if (filters.priority) query.priority = filters.priority;
     if (filters.assignedTo) query.assignedTo = filters.assignedTo;
 
-    return Task.find(query).populate('project assignedTo createdBy', 'name email avatar title');
+    return Task.find(query).populate('project assignedTo createdBy', 'firstName lastName email avatar title');
   }
 
   public static async getTaskById(taskId: string): Promise<ITask> {
-    const task = await Task.findById(taskId).populate('project assignedTo createdBy', 'name email avatar title');
+    const task = await Task.findById(taskId).populate('project assignedTo createdBy', 'firstName lastName email avatar title');
     if (!task) {
       throw new ApiError(404, 'Task not found');
     }
@@ -59,7 +59,7 @@ export class TaskService {
     const updatedTask = await Task.findByIdAndUpdate(taskId, updateData, {
       new: true,
       runValidators: true,
-    }).populate('project assignedTo createdBy', 'name email avatar title');
+    }).populate('project assignedTo createdBy', 'firstName lastName email avatar title');
 
     if (!updatedTask) {
       throw new ApiError(404, 'Task not found');
@@ -89,11 +89,11 @@ export class TaskService {
       content,
     });
 
-    return comment.populate('author', 'name email avatar');
+    return comment.populate('author', 'firstName lastName email avatar');
   }
 
   public static async getTaskComments(taskId: string): Promise<IComment[]> {
-    return Comment.find({ task: taskId }).populate('author', 'name email avatar').sort({ createdAt: -1 });
+    return Comment.find({ task: taskId }).populate('author', 'firstName lastName email avatar').sort({ createdAt: -1 });
   }
 }
 

@@ -1,5 +1,5 @@
 import { Request } from 'express';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 
 // ─── User Roles ──────────────────────────────────────────────────────────────
 export type Role = 'admin' | 'manager' | 'user';
@@ -7,6 +7,9 @@ export type Role = 'admin' | 'manager' | 'user';
 // ─── Task Types ───────────────────────────────────────────────────────────────
 export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'COMPLETED';
 export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+
+// ─── Project Member Roles ─────────────────────────────────────────────────────
+export type ProjectMemberRole = 'admin' | 'manager' | 'member';
 
 // ─── User Interfaces ──────────────────────────────────────────────────────────
 
@@ -36,6 +39,57 @@ export interface IUser {
  */
 export interface IUserDocument extends IUser, Document {
   comparePassword(candidatePassword: string): Promise<boolean>;
+}
+
+// ─── Project Interfaces ───────────────────────────────────────────────────────
+
+export interface IProjectMember {
+  user: Types.ObjectId;
+  role: ProjectMemberRole;
+  joinedAt: Date;
+}
+
+/**
+ * Plain project data shape (mirrors Mongoose schema fields).
+ */
+export interface IProject {
+  name: string;
+  description?: string;
+  owner: Types.ObjectId;
+  members: IProjectMember[];
+  categories: string[];
+  tags: string[];
+  status: 'active' | 'archived';
+  dueDate?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * Mongoose document that extends IProject.
+ */
+export interface IProjectDocument extends IProject, Document {}
+
+export interface CreateProjectInput {
+  name: string;
+  description?: string;
+  categories?: string[];
+  tags?: string[];
+  dueDate?: string;
+}
+
+export interface UpdateProjectInput {
+  name?: string;
+  description?: string;
+  categories?: string[];
+  tags?: string[];
+  dueDate?: string;
+  status?: 'active' | 'archived';
+}
+
+export interface AddMemberInput {
+  userId: string;
+  role?: ProjectMemberRole;
 }
 
 // ─── JWT ──────────────────────────────────────────────────────────────────────

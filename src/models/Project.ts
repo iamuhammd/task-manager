@@ -1,17 +1,27 @@
-import mongoose, { Schema, Document, Model } from 'mongoose';
+import mongoose, { Schema, Model } from 'mongoose';
+import { IProjectDocument, IProjectMember } from '../types';
 
-export interface IProject extends Document {
-  _id: mongoose.Types.ObjectId;
-  name: string;
-  description?: string;
-  owner: mongoose.Types.ObjectId;
-  members: mongoose.Types.ObjectId[];
-  status: 'ACTIVE' | 'ARCHIVED' | 'COMPLETED';
-  createdAt: Date;
-  updatedAt: Date;
-}
+const ProjectMemberSchema = new Schema<IProjectMember>(
+  {
+    user: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    role: {
+      type: String,
+      enum: ['admin', 'manager', 'member'],
+      default: 'member',
+    },
+    joinedAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  { _id: false }
+);
 
-const ProjectSchema: Schema<IProject> = new Schema(
+const ProjectSchema = new Schema<IProjectDocument>(
   {
     name: {
       type: String,
@@ -22,23 +32,32 @@ const ProjectSchema: Schema<IProject> = new Schema(
     description: {
       type: String,
       trim: true,
-      default: '',
+      maxlength: [500, 'Project description cannot exceed 500 characters'],
     },
     owner: {
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: [true, 'Project owner is required'],
     },
-    members: [
-      {
-        type: Schema.Types.ObjectId,
-        ref: 'User',
-      },
-    ],
+    members: {
+      type: [ProjectMemberSchema],
+      default: [],
+    },
+    categories: {
+      type: [String],
+      default: [],
+    },
+    tags: {
+      type: [String],
+      default: [],
+    },
     status: {
       type: String,
-      enum: ['ACTIVE', 'ARCHIVED', 'COMPLETED'],
-      default: 'ACTIVE',
+      enum: ['active', 'archived'],
+      default: 'active',
+    },
+    dueDate: {
+      type: Date,
     },
   },
   {
@@ -46,5 +65,13 @@ const ProjectSchema: Schema<IProject> = new Schema(
   }
 );
 
-export const Project: Model<IProject> = mongoose.model<IProject>('Project', ProjectSchema);
+// ─── Indexes ──────────────────────────────────────────────────────────────────
+ProjectSchema.index({ owner: 1 });
+ProjectSchema.index({ status: 1 });
+ProjectSchema.index({ owner: 1, status: 1 });
+
+export const Project: Model<IProjectDocument> = mongoose.model<IProjectDocument>(
+  'Project',
+  ProjectSchema
+);
 export default Project;
